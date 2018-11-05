@@ -1,0 +1,7 @@
+FROM devtest/core-libs:10.3.0.297
+EXPOSE 1506
+EXPOSE 2003
+ADD devtest /opt/devtest
+CMD ["/opt/devtest/bin/EnterpriseDashboard"]
+
+

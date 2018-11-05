@@ -1,0 +1,46 @@
+def outputDir = mkdir("${buildDir}/devtest")
+
+task copyInstallerFiles (type: Copy) {
+  doFirst {
+    delete outputDir
+  }
+  from LISA_HOME
+  into outputDir
+  include '.install4j/**',
+          'locks/**',
+          'webserver/dradis/**',
+          'lisa.properties',
+          'logging.properties'
+}
+
+task createDevTestDir (type: Copy, dependsOn: copyInstallerFiles) {
+  doFirst {
+    delete outputDir.path + '/bin'
+  }
+  from "${LISA_HOME}/bin"
+  into outputDir.path + '/bin'
+  include 'EnterpriseDashboard*'
+  exclude '*Service*'
+  filter { line -> line.contains('INSTALL4J_JAVA_PREFIX=""') ? 'INSTALL4J_JAVA_PREFIX="exec"' : line } 
+}
+
+dockerImage.dependsOn createDevTestDir, ":dockerimages/core-libs:dockerImage"
+
+dockerImage {
+  applicationName = 'dradis-base'
+  baseImage "${-> project.group}/core-libs"
+
+  if(pushToDockerRegistry) {
+    registry = "${-> dockerRegistryHost}"
+    tag = "${-> registry}/${-> project.group}/${-> applicationName}"
+    push = pushToDockerRegistry
+  }
+  tar = createImageTarFiles
+
+  exposePort 1506
+  exposePort 2003
+
+  addFile ('build/devtest', '/opt/devtest')
+
+  defaultCommand (['/opt/devtest/bin/EnterpriseDashboard'])
+}
